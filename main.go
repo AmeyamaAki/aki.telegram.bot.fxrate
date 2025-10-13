@@ -4,20 +4,29 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"strings"
 
 	"github.com/go-telegram/bot"
 	"github.com/joho/godotenv"
 )
 
 func main() {
+	// 仅当本地存在 `.env` 时加载，容器里通常没有
+	if _, err := os.Stat(".env"); err == nil {
+		if err := godotenv.Load(".env"); err != nil {
+			LogError("加载 .env 失败: %v", err)
+			os.Exit(1)
+		}
+		LogInfo("已从 .env 加载环境变量")
+	} else {
+		LogInfo("未发现 .env，使用环境变量")
+	}
 
-	if err := godotenv.Load(); err != nil {
-		LogError("Error loading .env file: %v", err)
+	botToken := strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN"))
+	if botToken == "" {
+		LogError("缺少环境变量 TELEGRAM_BOT_TOKEN")
 		os.Exit(1)
 	}
-	LogInfo("Environment variables loaded")
-
-	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
