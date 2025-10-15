@@ -1,5 +1,5 @@
 // logger.go
-package main
+package tools
 
 import (
 	"fmt"

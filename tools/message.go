@@ -1,5 +1,5 @@
 // message.go
-package main
+package tools
 
 import (
 	"bytes"
@@ -24,7 +24,7 @@ func parseModeFromString(mode string) models.ParseMode {
 	}
 }
 
-func getUserNickName(update *models.Update) string {
+func GetUserNickName(update *models.Update) string {
 	if update.Message == nil || update.Message.From == nil {
 		return ""
 	}
