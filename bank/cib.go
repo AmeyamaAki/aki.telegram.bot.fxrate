@@ -190,8 +190,8 @@ func parseCIBReleaseTime(html []byte) string {
 	s = strings.Join(out, " ")
 
 	// 年月日 -> 标准
-	s = strings.ReplaceAll(s, "年", "-")
-	s = strings.ReplaceAll(s, "月", "-")
+	s = strings.ReplaceAll(s, "年", ".")
+	s = strings.ReplaceAll(s, "月", ".")
 	s = strings.ReplaceAll(s, "日", "")
 	s = strings.TrimSpace(s)
 
