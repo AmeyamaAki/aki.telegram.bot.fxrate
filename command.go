@@ -9,6 +9,7 @@ import (
 	"github.com/go-telegram/bot/models"
 
 	"aki.telegram.bot.fxrate/bank"
+	"aki.telegram.bot.fxrate/commands"
 )
 
 func HandleCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -38,6 +39,8 @@ func HandleCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 		HandleCIBCommand(ctx, b, update)
 	case "/cmb":
 		HandleCMBCommand(ctx, b, update)
+	case "/xhmr":
+		commands.HandleXHMRCommand(ctx, b, update)
 	default:
 		return
 	}
@@ -51,6 +54,7 @@ func CommandStart(ctx context.Context, b *bot.Bot, update *models.Update) {
 			"/boc [币种] - 中国银行牌价\n"+
 			"/cib [币种] - 兴业银行牌价\n"+
 			"/cmb [币种] - 招商银行牌价\n\n"+
+			"/xhmr [币种] [数字|银行} - 现汇买入列出\n\n"+
 			"Enjoy~ 💖", nickname,
 	)
 	SendMessage(ctx, b, update.Message.Chat.ID, startReply, update.Message.MessageThreadID, "")
@@ -62,6 +66,7 @@ func setCommandsForUser(ctx context.Context, b *bot.Bot, userID int64) {
 		{Command: "boc", Description: "中国银行牌价"},
 		{Command: "cib", Description: "兴业银行牌价"},
 		{Command: "cmb", Description: "招商银行牌价"},
+		{Command: "xhmr", Description: "现汇买入列出"},
 	}
 	params := &bot.SetMyCommandsParams{
 		Commands: userCommands,
