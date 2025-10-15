@@ -37,9 +37,9 @@ func main() {
 
 	b, err := bot.New(botToken, opts...)
 	if err != nil {
-		LogError("Error creating bot: %v", err)
+		LogError("创建 Bot 时出错: %v", err)
 	} else {
-		LogInfo("Bot created")
+		LogInfo("Bot 创建完毕")
 	}
 	b.Start(ctx)
 }

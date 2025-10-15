@@ -1,4 +1,3 @@
-// /bank/boc.go
 package bank
 
 import (
@@ -18,6 +17,16 @@ const (
 	bocURL = "https://www.boc.cn/sourcedb/whpj/index.html"
 	ua     = "aki.telegram.bot.fxrate/1.0 (+https://aki.cat)"
 )
+
+type BOCRate struct {
+	Name        string // 币种中文名
+	BuySpot     string // 现汇买入价
+	BuyCash     string // 现钞买入价
+	SellSpot    string // 现汇卖出价
+	SellCash    string // 现钞卖出价
+	BankRate    string // 中行折算价
+	ReleaseTime string // 汇率发布时间
+}
 
 var codeToCN = map[string]string{
 	"usd": "美元",
@@ -59,74 +68,65 @@ var codeToCN = map[string]string{
 	"mop": "澳门元",
 }
 
-// BuildBOCMessage 访问中国银行外汇牌价页面，查找目标币种，并返回格式化消息。
-// 返回值：message、found、error
-func BuildBOCMessage(ctx context.Context, query string) (string, bool, error) {
-	target := normalizeQuery(query)
-
+// GetBOCRate 通过“代码/中文名/模糊匹配”获取单币种牌价
+// 返回：rate，found，error
+func GetBOCRate(ctx context.Context, query string) (*BOCRate, bool, error) {
 	doc, err := fetchBOCDoc(ctx)
 	if err != nil {
-		return "", false, err
+		return nil, false, err
 	}
-
 	table := locateRateTable(doc)
 	if table == nil {
-		return "", false, fmt.Errorf("未在页面上找到牌价表")
+		return nil, false, fmt.Errorf("未在页面上找到牌价表")
 	}
 
-	var (
-		found  bool
-		result string
-	)
+	target := normalizeQuery(query)
+	var rate *BOCRate
 
 	table.Find("tr").EachWithBreak(func(i int, tr *goquery.Selection) bool {
-		// 跳过表头
 		if i == 0 {
-			return true
+			return true // 跳过表头
 		}
 		tds := tr.Find("td")
 		if tds.Length() < 2 {
 			return true
 		}
 		name := strings.TrimSpace(tds.Eq(0).Text())
-		if matchCurrency(name, target) {
-			// 常见列顺序（可能变动）：币种/货币名称、现汇买入价、现钞买入价、现汇卖出价、现钞卖出价、中行折算价、发布日期、发布时间
-			buySpot := getTD(tds, 1)
-			buyCash := getTD(tds, 2)
-			sellSpot := getTD(tds, 3)
-			sellCash := getTD(tds, 4)
-			refRate := getTD(tds, 5)
-
-			// 第7列可能已包含“日期+时间”，第8列为时间；避免重复拼接
-			date := getTD(tds, 6)
-			timeStr := getTD(tds, 7)
-			ts := strings.TrimSpace(date)
-			if ts == "" {
-				ts = strings.TrimSpace(timeStr)
-			} else if timeStr != "" && !strings.Contains(ts, timeStr) {
-				ts = strings.TrimSpace(ts + " " + timeStr)
-			}
-
-			result = fmt.Sprintf(
-				"中国银行外汇牌价 — %s\n"+
-					"现汇买入价: %s\n"+
-					"现钞买入价: %s\n"+
-					"现汇卖出价: %s\n"+
-					"现钞卖出价: %s\n"+
-					"中行折算价: %s\n"+
-					"发布时间: %s",
-				name, nz(buySpot, "-"), nz(buyCash, "-"), nz(sellSpot, "-"), nz(sellCash, "-"), nz(refRate, "-"), nz(ts, "-"),
-			)
-			found = true
-			return false
+		if !matchCurrency(name, target) {
+			return true
 		}
-		return true
+
+		buySpot := getTD(tds, 1)
+		buyCash := getTD(tds, 2)
+		sellSpot := getTD(tds, 3)
+		sellCash := getTD(tds, 4)
+		refRate := getTD(tds, 5)
+
+		date := getTD(tds, 6)
+		timeStr := getTD(tds, 7)
+		ts := strings.TrimSpace(date)
+		if ts == "" {
+			ts = strings.TrimSpace(timeStr)
+		} else if timeStr != "" && !strings.Contains(ts, timeStr) {
+			ts = strings.TrimSpace(ts + " " + timeStr)
+		}
+
+		rate = &BOCRate{
+			Name:        name,
+			BuySpot:     nz(buySpot, "-"),
+			BuyCash:     nz(buyCash, "-"),
+			SellSpot:    nz(sellSpot, "-"),
+			SellCash:    nz(sellCash, "-"),
+			BankRate:    nz(refRate, "-"),
+			ReleaseTime: nz(ts, "-"),
+		}
+		return false
 	})
 
-	if !found {
-		return "", false, nil
+	if rate == nil {
+		return nil, false, nil
 	}
-	return result, true, nil
+	return rate, true, nil
 }
 
 func normalizeQuery(q string) string {
@@ -135,14 +135,12 @@ func normalizeQuery(q string) string {
 		return q
 	}
 	lq := strings.ToLower(q)
-	// 去掉可能的符号与空格
 	lq = strings.ReplaceAll(lq, "_", "")
 	lq = strings.ReplaceAll(lq, "-", "")
 	lq = strings.ReplaceAll(lq, "/", "")
 	if cn, ok := codeToCN[lq]; ok {
 		return cn
 	}
-	// 若已是中文名称或部分匹配，直接返回
 	return q
 }
 
@@ -173,7 +171,6 @@ func nz(s, def string) string {
 }
 
 // 仅保留 TLS1.2 + TLS_RSA_WITH_AES_256_CBC_SHA 的最小客户端
-
 func bocClient() *http.Client {
 	tr := &http.Transport{
 		Proxy:             http.ProxyFromEnvironment,
@@ -182,9 +179,9 @@ func bocClient() *http.Client {
 		TLSClientConfig: &tls.Config{
 			MinVersion:   tls.VersionTLS12,
 			MaxVersion:   tls.VersionTLS12,
-			ServerName:   "www.boc.cn",                               // SNI
-			NextProtos:   []string{"http/1.1"},                       // 仅 http/1.1
-			CipherSuites: []uint16{tls.TLS_RSA_WITH_AES_256_CBC_SHA}, // 仅 RSA-CBC-256
+			ServerName:   "www.boc.cn",
+			NextProtos:   []string{"http/1.1"},
+			CipherSuites: []uint16{tls.TLS_RSA_WITH_AES_256_CBC_SHA},
 		},
 	}
 	return &http.Client{Transport: tr, Timeout: 12 * time.Second}
@@ -209,11 +206,9 @@ func FetchBOCHTML(ctx context.Context) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	// Ensure successful response
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("BOC response returned status: %d", resp.StatusCode)
 	}
-
 	htmlBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -237,7 +232,6 @@ func locateRateTable(doc *goquery.Document) *goquery.Selection {
 	var found *goquery.Selection
 	doc.Find("table").EachWithBreak(func(i int, t *goquery.Selection) bool {
 		head := strings.TrimSpace(t.Find("tr").First().Text())
-		// 只要表头包含“货币名称”即可视为目标表
 		if strings.Contains(head, "货币名称") {
 			found = t
 			return false
