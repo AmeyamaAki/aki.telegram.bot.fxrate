@@ -8,7 +8,7 @@ well... The code is a mess and needs to be sorted out later
 
 ### boc.go
 
-```
+```go
 type BOCRate struct {
 	Name        string // 币种中文名
 	BuySpot     string // 现汇买入价
@@ -47,3 +47,21 @@ func main() {
 	fmt.Printf("%s: BuySpot=%s, SellSpot=%s, ReleaseTime=%s\n", rate.Name, rate.BuySpot, rate.SellSpot, rate.ReleaseTime)
 }
 ```
+
+### cib.go
+
+```go
+type CIBRate struct {
+	Name        string // 币种中文名
+	Symbol      string // 币种符号
+	BuySpot     string // 现汇买入价
+	BuyCash     string // 现钞买入价
+	SellSpot    string // 现汇卖出价
+	SellCash    string // 现钞卖出价
+	ReleaseTime string // 汇率发布时间
+}
+```
+
+Use `bank.GetCIBRate(ctx, "usd")` to get the USD exchange rate from CIB.
+
+The example is the same as above.
