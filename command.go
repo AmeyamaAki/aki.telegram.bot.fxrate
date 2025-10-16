@@ -35,7 +35,7 @@ func HandleCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 		CommandStart(ctx, b, update)
 		setCommandsForUser(ctx, b, userID)
 	case "/boc":
-		HandleBOCCommand(ctx, b, update)
+		commands.HandleBOCCommand(ctx, b, update)
 	case "/cib":
 		HandleCIBCommand(ctx, b, update)
 	case "/hy":
@@ -80,41 +80,6 @@ func setCommandsForUser(ctx context.Context, b *bot.Bot, userID int64) {
 		},
 	}
 	b.SetMyCommands(ctx, params)
-}
-
-func HandleBOCCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
-	if update.Message == nil {
-		return
-	}
-	fields := strings.Fields(update.Message.Text)
-	if len(fields) < 2 {
-		tools.SendMessage(ctx, b, update.Message.Chat.ID, "用法: /boc [币种]，例如: /boc hkd 或 /boc 港币", update.Message.MessageThreadID, "")
-		return
-	}
-
-	rate, found, err := bank.GetBOCRate(ctx, fields[1])
-	if err != nil {
-		tools.LogError("BOC fetch error: %v", err)
-		tools.SendMessage(ctx, b, update.Message.Chat.ID, "查询失败，请稍后再试。", update.Message.MessageThreadID, "")
-		return
-	}
-	if !found || rate == nil {
-		tools.SendMessage(ctx, b, update.Message.Chat.ID, "未找到该币种，请尝试币种代码（如: USD/HKD）或中文名。", update.Message.MessageThreadID, "")
-		return
-	}
-
-	msg := fmt.Sprintf(
-		"中国银行外汇牌价 — %s\n\n"+
-			"现汇买入价: %s\n"+
-			"现钞买入价: %s\n"+
-			"现汇卖出价: %s\n"+
-			"现钞卖出价: %s\n"+
-			"中行折算价: %s\n\n"+
-			"发布时间: %s",
-		rate.Name, rate.BuySpot, rate.BuyCash, rate.SellSpot, rate.SellCash, rate.BankRate, rate.ReleaseTime,
-	)
-
-	tools.SendMessage(ctx, b, update.Message.Chat.ID, msg, update.Message.MessageThreadID, "")
 }
 
 func HandleCIBCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
