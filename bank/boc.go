@@ -66,6 +66,10 @@ var codeToCN = map[string]string{
 	"qar": "卡塔尔里亚尔",
 	"mnt": "蒙古图格里克",
 	"mop": "澳门元",
+	// 常见对“人民币”的别称，用于识别 CNY（表中无独立行）
+	"cny":      "人民币",
+	"rmb":      "人民币",
+	"renminbi": "人民币",
 }
 
 // GetBOCRate 通过“代码/中文名/模糊匹配”获取单币种牌价

@@ -54,7 +54,7 @@ func CommandStart(ctx context.Context, b *bot.Bot, update *models.Update) {
 	startReply := fmt.Sprintf(
 		"Welcome, %s!\n\n目前可用的指令:\n"+
 			"/start - 显示这条消息，更新命令列表\n"+
-			"/boc [币种] - 中国银行牌价\n"+
+			"/boc - 中国银行牌价相关功能\n"+
 			"/cib [币种] - 兴业银行牌价\n"+
 			"/hy [币种] - 寰宇人生借记卡汇率\n"+
 			"/cmb [币种] - 招商银行牌价\n\n"+
@@ -67,7 +67,7 @@ func CommandStart(ctx context.Context, b *bot.Bot, update *models.Update) {
 func setCommandsForUser(ctx context.Context, b *bot.Bot, userID int64) {
 	userCommands := []models.BotCommand{
 		{Command: "start", Description: "启动~ 顺便更新一下命令列表w"},
-		{Command: "boc", Description: "中国银行牌价"},
+		{Command: "boc", Description: "中国银行牌价相关"},
 		{Command: "cib", Description: "兴业银行牌价"},
 		{Command: "hy", Description: "寰宇人生借记卡汇率"},
 		{Command: "cmb", Description: "招商银行牌价"},
