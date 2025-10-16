@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -259,4 +260,57 @@ func matchCIBCurrency(name, code, target string) bool {
 		strings.Contains(target, name) ||
 		strings.Contains(strings.ToLower(code), strings.ToLower(target)) ||
 		strings.Contains(strings.ToLower(target), strings.ToLower(code))
+}
+
+// ------ 寰宇人生借记卡 ------
+
+type CIBLifeRate struct {
+	Name        string // 币种中文名
+	Symbol      string // 币种符号
+	BuySpot     string // 现汇买入价
+	BuyCash     string // 现钞买入价
+	SellSpot    string // 现汇卖出价
+	SellCash    string // 现钞卖出价
+	ReleaseTime string // 汇率发布时间
+}
+
+func GetCIBLifeRate(ctx context.Context, query string) (*CIBLifeRate, bool, error) {
+	cibRate, found, err := GetCIBRate(ctx, query)
+	if err != nil || !found || cibRate == nil {
+		return nil, false, err
+	}
+
+	// 解析价格
+	buySpot, _ := strconv.ParseFloat(strings.ReplaceAll(cibRate.BuySpot, ",", ""), 64)
+	sellSpot, _ := strconv.ParseFloat(strings.ReplaceAll(cibRate.SellSpot, ",", ""), 64)
+
+	// 计算中间价
+	mid := (buySpot + sellSpot) / 2
+
+	// 购汇/结汇价与中间价的差值
+	buyDiff := mid - buySpot
+	sellDiff := sellSpot - mid
+
+	// 5折优惠
+	buySpotLife := mid - buyDiff*0.5
+	sellSpotLife := mid + sellDiff*0.5
+
+	// 保留小数点后4位
+	format := func(f float64) string {
+		if f == 0 {
+			return "-"
+		}
+		return fmt.Sprintf("%.4f", f)
+	}
+
+	rate := &CIBLifeRate{
+		Name:        cibRate.Name,
+		Symbol:      cibRate.Symbol,
+		BuySpot:     format(buySpotLife),
+		BuyCash:     cibRate.BuyCash,
+		SellSpot:    format(sellSpotLife),
+		SellCash:    cibRate.SellCash,
+		ReleaseTime: cibRate.ReleaseTime,
+	}
+	return rate, true, nil
 }
