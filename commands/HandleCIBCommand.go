@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/go-telegram/bot"
@@ -42,7 +41,7 @@ func HandleCIBCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if len(fields) >= 4 {
 		to = fields[3]
 	}
-	amount, ok := cibParseAmount(amountStr)
+	amount, ok := ParseAmount(amountStr)
 	if !ok {
 		tools.SendMessage(ctx, b, update.Message.Chat.ID, "金额格式不正确，请输入数字，例如: 100 或 100.5", update.Message.MessageThreadID, "")
 		return
@@ -76,47 +75,6 @@ func handleCIBLookup(ctx context.Context, b *bot.Bot, update *models.Update, q s
 
 // ====== 换算实现（与 BOC 一致的策略）======
 
-func cibParseAmount(s string) (float64, bool) {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return 0, false
-	}
-	s = strings.ReplaceAll(s, ",", "")
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, false
-	}
-	return v, true
-}
-
-func cibParseRate(s string) (float64, bool) {
-	s = strings.TrimSpace(s)
-	if s == "" || s == "-" {
-		return 0, false
-	}
-	s = strings.ReplaceAll(s, ",", "")
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, false
-	}
-	return v, true
-}
-
-func cibIsCNY(code string) bool {
-	c := strings.ToLower(strings.TrimSpace(code))
-	c = strings.ReplaceAll(c, "_", "")
-	c = strings.ReplaceAll(c, "-", "")
-	c = strings.ReplaceAll(c, "/", "")
-	switch c {
-	case "cny", "rmb", "renminbi", "人民币":
-		return true
-	default:
-		return false
-	}
-}
-
-func cibUpper(code string) string { return strings.ToUpper(strings.TrimSpace(code)) }
-
 // 规则：
 // 外币 -> CNY：优先“现汇买入价”，缺失回退“现钞买入价”
 // CNY -> 外币：优先“现汇卖出价”，缺失回退“现钞卖出价”
@@ -127,8 +85,8 @@ func handleCIBConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 		return
 	}
 
-	fromCode := cibUpper(from)
-	toCode := cibUpper(to)
+	fromCode := UpperCurrency(from)
+	toCode := UpperCurrency(to)
 	unit := 100.0
 
 	if strings.EqualFold(fromCode, toCode) {
@@ -138,7 +96,7 @@ func handleCIBConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 	}
 
 	// CNY -> 外币
-	if cibIsCNY(fromCode) && !cibIsCNY(toCode) {
+	if IsCNY(fromCode) && !IsCNY(toCode) {
 		rate, found, err := bank.GetCIBRate(ctx, toCode)
 		if err != nil {
 			tools.LogError("CIB fetch error: %v", err)
@@ -151,9 +109,9 @@ func handleCIBConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 		}
 		label := "现汇卖出价"
 		rateStr := rate.SellSpot
-		rateVal, ok := cibParseRate(rate.SellSpot)
+		rateVal, ok := ParseRate(rate.SellSpot)
 		if !ok || rateVal <= 0 {
-			if v, ok2 := cibParseRate(rate.SellCash); ok2 && v > 0 {
+			if v, ok2 := ParseRate(rate.SellCash); ok2 && v > 0 {
 				label = "现钞卖出价"
 				rateStr = rate.SellCash
 				rateVal = v
@@ -163,19 +121,13 @@ func handleCIBConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 			}
 		}
 		out := amount / rateVal * unit
-		msg := fmt.Sprintf(
-			"按兴业银行牌价换算: %s -> %s\n\n"+
-				"%.2f CNY ≈ %.2f %s\n\n"+
-				"使用牌价: %s %s\n"+
-				"发布时间: %s",
-			"CNY", rate.Name, amount, out, toCode, label, rateStr, rate.ReleaseTime,
-		)
+		msg := FormatCNYToFX("兴业银行", rate.Name, toCode, amount, out, label, rateStr, rate.ReleaseTime)
 		tools.SendMessage(ctx, b, update.Message.Chat.ID, msg, update.Message.MessageThreadID, "")
 		return
 	}
 
 	// 外币 -> CNY
-	if !cibIsCNY(fromCode) && cibIsCNY(toCode) {
+	if !IsCNY(fromCode) && IsCNY(toCode) {
 		rate, found, err := bank.GetCIBRate(ctx, fromCode)
 		if err != nil {
 			tools.LogError("CIB fetch error: %v", err)
@@ -188,9 +140,9 @@ func handleCIBConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 		}
 		label := "现汇买入价"
 		rateStr := rate.BuySpot
-		rateVal, ok := cibParseRate(rate.BuySpot)
+		rateVal, ok := ParseRate(rate.BuySpot)
 		if !ok || rateVal <= 0 {
-			if v, ok2 := cibParseRate(rate.BuyCash); ok2 && v > 0 {
+			if v, ok2 := ParseRate(rate.BuyCash); ok2 && v > 0 {
 				label = "现钞买入价"
 				rateStr = rate.BuyCash
 				rateVal = v
@@ -200,13 +152,7 @@ func handleCIBConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 			}
 		}
 		out := amount * rateVal / unit
-		msg := fmt.Sprintf(
-			"按兴业银行牌价换算: %s -> %s\n\n"+
-				"%.2f %s ≈ %.2f CNY\n\n"+
-				"使用牌价: %s %s\n"+
-				"发布时间: %s",
-			rate.Name, "CNY", amount, fromCode, out, label, rateStr, rate.ReleaseTime,
-		)
+		msg := FormatFXToCNY("兴业银行", rate.Name, fromCode, amount, out, label, rateStr, rate.ReleaseTime)
 		tools.SendMessage(ctx, b, update.Message.Chat.ID, msg, update.Message.MessageThreadID, "")
 		return
 	}

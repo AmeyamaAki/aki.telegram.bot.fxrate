@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/go-telegram/bot"
@@ -45,7 +44,7 @@ func HandleBOCCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if len(fields) >= 4 {
 		to = fields[3]
 	}
-	amount, ok := parseAmount(amountStr)
+	amount, ok := ParseAmount(amountStr)
 	if !ok {
 		tools.SendMessage(ctx, b, update.Message.Chat.ID, "金额格式不正确，请输入数字，例如: 100 或 100.5", update.Message.MessageThreadID, "")
 		return
@@ -82,50 +81,6 @@ func handleBOCLookup(ctx context.Context, b *bot.Bot, update *models.Update, q s
 
 // ===== 货币换算 =====
 
-func parseAmount(s string) (float64, bool) {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return 0, false
-	}
-	// 允许千分位逗号
-	s = strings.ReplaceAll(s, ",", "")
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, false
-	}
-	return v, true
-}
-
-func parseRate(s string) (float64, bool) {
-	s = strings.TrimSpace(s)
-	if s == "" || s == "-" {
-		return 0, false
-	}
-	s = strings.ReplaceAll(s, ",", "")
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, false
-	}
-	return v, true
-}
-
-func isCNY(code string) bool {
-	c := strings.ToLower(strings.TrimSpace(code))
-	c = strings.ReplaceAll(c, "_", "")
-	c = strings.ReplaceAll(c, "-", "")
-	c = strings.ReplaceAll(c, "/", "")
-	switch c {
-	case "cny", "rmb", "renminbi", "人民币":
-		return true
-	default:
-		return false
-	}
-}
-
-func upper(code string) string {
-	return strings.ToUpper(strings.TrimSpace(code))
-}
-
 // handleBOCConvert 使用中行牌价进行换算：
 // 外币 -> CNY 使用现汇买入价（结汇），若缺失则用现钞买入价
 // CNY -> 外币 使用现汇卖出价（购汇），若缺失则同上
@@ -136,8 +91,8 @@ func handleBOCConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 		return
 	}
 
-	fromCode := upper(from)
-	toCode := upper(to)
+	fromCode := UpperCurrency(from)
+	toCode := UpperCurrency(to)
 	unit := 100.0
 
 	// 同币种
@@ -148,7 +103,7 @@ func handleBOCConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 	}
 
 	// CNY -> 外币
-	if isCNY(fromCode) && !isCNY(toCode) {
+	if IsCNY(fromCode) && !IsCNY(toCode) {
 		// 获取目标外币的卖出价，无现汇则退回到现钞
 		rate, found, err := bank.GetBOCRate(ctx, toCode)
 		if err != nil {
@@ -163,10 +118,10 @@ func handleBOCConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 		// 优先现汇卖出价
 		usedLabel := "现汇卖出价"
 		usedRateStr := rate.SellSpot
-		usedRateVal, ok := parseRate(rate.SellSpot)
+		usedRateVal, ok := ParseRate(rate.SellSpot)
 		if !ok || usedRateVal <= 0 {
 			// 回退现钞卖出价
-			if v, ok2 := parseRate(rate.SellCash); ok2 && v > 0 {
+			if v, ok2 := ParseRate(rate.SellCash); ok2 && v > 0 {
 				usedLabel = "现钞卖出价"
 				usedRateStr = rate.SellCash
 				usedRateVal = v
@@ -176,17 +131,13 @@ func handleBOCConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 			}
 		}
 		out := amount / usedRateVal * unit
-		msg := fmt.Sprintf(
-			"按中国银行牌价换算: %s -> %s\n\n"+
-				"%.2f CNY ≈ %.2f %s\n\n"+
-				"使用牌价: %s %s\n"+
-				"发布时间: %s", "CNY", rate.Name, amount, out, toCode, usedLabel, usedRateStr, rate.ReleaseTime)
+		msg := FormatCNYToFX("中国银行", rate.Name, toCode, amount, out, usedLabel, usedRateStr, rate.ReleaseTime)
 		tools.SendMessage(ctx, b, update.Message.Chat.ID, msg, update.Message.MessageThreadID, "")
 		return
 	}
 
 	// 外币 -> CNY
-	if !isCNY(fromCode) && isCNY(toCode) {
+	if !IsCNY(fromCode) && IsCNY(toCode) {
 		rate, found, err := bank.GetBOCRate(ctx, fromCode)
 		if err != nil {
 			tools.LogError("BOC fetch error: %v", err)
@@ -200,10 +151,10 @@ func handleBOCConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 		// 优先现汇买入价
 		usedLabel := "现汇买入价"
 		usedRateStr := rate.BuySpot
-		usedRateVal, ok := parseRate(rate.BuySpot)
+		usedRateVal, ok := ParseRate(rate.BuySpot)
 		if !ok || usedRateVal <= 0 {
 			// 回退现钞买入价
-			if v, ok2 := parseRate(rate.BuyCash); ok2 && v > 0 {
+			if v, ok2 := ParseRate(rate.BuyCash); ok2 && v > 0 {
 				usedLabel = "现钞买入价"
 				usedRateStr = rate.BuyCash
 				usedRateVal = v
@@ -213,12 +164,7 @@ func handleBOCConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 			}
 		}
 		out := amount * usedRateVal / unit
-		msg := fmt.Sprintf(
-			"按中国银行牌价换算: %s -> %s\n\n"+
-				"%.2f %s ≈ %.2f CNY\n\n"+
-				"使用牌价: %s %s \n"+
-				"发布时间: %s",
-			rate.Name, "CNY", amount, fromCode, out, usedLabel, usedRateStr, rate.ReleaseTime)
+		msg := FormatFXToCNY("中国银行", rate.Name, fromCode, amount, out, usedLabel, usedRateStr, rate.ReleaseTime)
 		tools.SendMessage(ctx, b, update.Message.Chat.ID, msg, update.Message.MessageThreadID, "")
 		return
 	}
