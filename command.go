@@ -79,7 +79,12 @@ func setCommandsForUser(ctx context.Context, b *bot.Bot, userID int64) {
 			ChatID: userID,
 		},
 	}
-	b.SetMyCommands(ctx, params)
+
+	_, err := b.SetMyCommands(ctx, params)
+	if err != nil {
+		tools.LogError("setting commands error for user: %v", err)
+		return
+	}
 }
 
 func HandleCIBCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
