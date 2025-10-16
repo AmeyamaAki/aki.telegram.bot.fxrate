@@ -68,6 +68,28 @@ Use `bank.GetCIBRate(ctx, "usd")` to get the USD exchange rate from CIB.
 
 The example is the same as above.
 
+#### 寰宇人生借记卡
+
+> [寰宇人生借记卡](https://mobile.cib.com.cn/app/abroad/intro/debit.html)面向境内外客户发行，满足客户外汇投资、境外旅游、出国留学、跨境薪酬结算、跨境支付提现等需求，并提供多种外汇服务权益。
+
+```go
+type CIBLifeRate struct {
+	Name        string // 币种中文名
+	Symbol      string // 币种符号
+	BuySpot     string // 现汇买入价
+	BuyCash     string // 现钞买入价
+	SellSpot    string // 现汇卖出价
+	SellCash    string // 现钞卖出价
+	ReleaseTime string // 汇率发布时间
+}
+```
+
+Use `bank.GetCIBLifeRate(ctx, "usd")` to get the USD exchange rate from 寰宇人生借记卡 with CIB.
+
+The example is the same as above.
+
+**Note: The exchange rate maybe different for that show in their app. Pls refer to the real transaction.**
+
 ---
 
 ## cmb.go
