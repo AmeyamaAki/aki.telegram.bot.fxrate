@@ -134,13 +134,13 @@ func handleCMBConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 			tools.SendMessage(ctx, b, update.Message.Chat.ID, "未找到该币种，请检查输入的源币种代码。", update.Message.MessageThreadID, "")
 			return
 		}
-		label := "现汇买入价"
-		rateStr := rate.BuySpot
-		rateVal, ok := ParseRate(rate.BuySpot)
+		label := "现汇卖出价"
+		rateStr := rate.SellSpot
+		rateVal, ok := ParseRate(rate.SellSpot)
 		if !ok || rateVal <= 0 {
-			if v, ok2 := ParseRate(rate.BuyCash); ok2 && v > 0 {
-				label = "现钞买入价"
-				rateStr = rate.BuyCash
+			if v, ok2 := ParseRate(rate.SellCash); ok2 && v > 0 {
+				label = "现钞卖出价"
+				rateStr = rate.SellCash
 				rateVal = v
 			} else {
 				tools.SendMessage(ctx, b, update.Message.Chat.ID, "源币种缺少有效的买入价（现汇/现钞），无法换算。", update.Message.MessageThreadID, "")

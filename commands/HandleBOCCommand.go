@@ -82,9 +82,10 @@ func handleBOCLookup(ctx context.Context, b *bot.Bot, update *models.Update, q s
 // ===== 货币换算 =====
 
 // handleBOCConvert 使用中行牌价进行换算：
-// 外币 -> CNY 使用现汇买入价（结汇），若缺失则用现钞买入价
+// 外币 -> CNY 使用现汇卖出价（若缺失则用现钞卖出价）
 // CNY -> 外币 使用现汇卖出价（购汇），若缺失则同上
 // 牌价单位为“每100外币”，按 100 为基准进行换算。
+// 结汇暂时不想写，想好了命令参数该怎么安排再说吧...
 func handleBOCConvert(ctx context.Context, b *bot.Bot, update *models.Update, from, to string, amount float64) {
 	if amount < 0 {
 		tools.SendMessage(ctx, b, update.Message.Chat.ID, "金额不能为负数。", update.Message.MessageThreadID, "")
@@ -148,18 +149,18 @@ func handleBOCConvert(ctx context.Context, b *bot.Bot, update *models.Update, fr
 			tools.SendMessage(ctx, b, update.Message.Chat.ID, "未找到该币种，请检查输入的源币种代码。", update.Message.MessageThreadID, "")
 			return
 		}
-		// 优先现汇买入价
-		usedLabel := "现汇买入价"
-		usedRateStr := rate.BuySpot
-		usedRateVal, ok := ParseRate(rate.BuySpot)
+		// 优先现汇卖出价
+		usedLabel := "现汇卖出价"
+		usedRateStr := rate.SellSpot
+		usedRateVal, ok := ParseRate(rate.SellSpot)
 		if !ok || usedRateVal <= 0 {
-			// 回退现钞买入价
-			if v, ok2 := ParseRate(rate.BuyCash); ok2 && v > 0 {
-				usedLabel = "现钞买入价"
-				usedRateStr = rate.BuyCash
+			// 回退现钞卖出价
+			if v, ok2 := ParseRate(rate.SellCash); ok2 && v > 0 {
+				usedLabel = "现钞卖出价"
+				usedRateStr = rate.SellCash
 				usedRateVal = v
 			} else {
-				tools.SendMessage(ctx, b, update.Message.Chat.ID, "源币种缺少有效的买入价（现汇/现钞），无法换算。", update.Message.MessageThreadID, "")
+				tools.SendMessage(ctx, b, update.Message.Chat.ID, "源币种缺少有效的卖出价（现汇/现钞），无法换算。", update.Message.MessageThreadID, "")
 				return
 			}
 		}
