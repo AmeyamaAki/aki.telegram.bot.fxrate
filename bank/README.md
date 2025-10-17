@@ -110,3 +110,24 @@ type CMBRate struct {
 Use `bank.GetCMBRate(ctx, "usd")` to get the USD exchange rate from CMB.
 
 Same as above.
+
+---
+
+## uniopay.go
+
+```go
+type UniopayRate struct {
+	BaseCur     string // 基准币种代码（扣账币种）
+	BaseName    string // 基准币种中文名
+	TransCur    string // 目标币种代码（交易币种）
+	TransName   string // 目标币种中文名
+	Rate        string // 汇率（1 BaseCur = Rate TransCur）
+	ReleaseTime string // 汇率发布时间
+}
+```
+
+Use `bank.GetUnionPayRate(ctx, debit, trans)` to get the exchange rate from Uniopay.
+
+Same as above.
+
+Note: When the exchange rate is not published, an attempt is made to obtain the previous day's.
