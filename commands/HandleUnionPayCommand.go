@@ -89,13 +89,20 @@ func handleUnionPayConvert(ctx context.Context, b *bot.Bot, update *models.Updat
 	fromCode := UpperCurrency(from)
 	toCode := UpperCurrency(to)
 
-	debit := fromCode
-	trans := toCode
+	// 将 CNY 同义词规范为 CNY
+	if IsCNY(fromCode) {
+		fromCode = "CNY"
+	}
 	if strings.TrimSpace(to) == "" {
-		// 未提供目标币种：默认转换为 CNY
-		trans = "CNY"
+		toCode = "CNY"
+	} else if IsCNY(toCode) {
+		toCode = "CNY"
 	}
 
+	debit := fromCode
+	trans := toCode
+
+	// 同币种
 	if strings.EqualFold(debit, trans) {
 		msg := fmt.Sprintf("%.2f %s = %.2f %s (同币种，无需换算)", amount, debit, amount, trans)
 		tools.SendMessage(ctx, b, update.Message.Chat.ID, msg, update.Message.MessageThreadID, "")
@@ -113,7 +120,24 @@ func handleUnionPayConvert(ctx context.Context, b *bot.Bot, update *models.Updat
 		return
 	}
 
-	out := amount * mustParseRate(rate.Rate)
+	rateVal := mustParseRate(rate.Rate)
+	out := amount * rateVal
+
+	// 使用 utils 的标准格式：仅在 CNY <-> 外币 时使用
+	if IsCNY(trans) && !IsCNY(debit) {
+		// 外币 -> CNY
+		msg := FormatFXToCNY("银联国际", bank.GetCurrencyName(debit), debit, amount, out, "汇率", rate.Rate, rate.ReleaseTime)
+		tools.SendMessage(ctx, b, update.Message.Chat.ID, msg, update.Message.MessageThreadID, "")
+		return
+	}
+	if IsCNY(debit) && !IsCNY(trans) {
+		// CNY -> 外币
+		msg := FormatCNYToFX("银联国际", bank.GetCurrencyName(trans), trans, amount, out, "汇率", rate.Rate, rate.ReleaseTime)
+		tools.SendMessage(ctx, b, update.Message.Chat.ID, msg, update.Message.MessageThreadID, "")
+		return
+	}
+
+	// 外币 -> 外币：保留原先的通用格式
 	msg := fmt.Sprintf(
 		"按银联国际汇率换算: %s -> %s\n\n"+
 			"%.2f %s ≈ %.2f %s\n\n"+

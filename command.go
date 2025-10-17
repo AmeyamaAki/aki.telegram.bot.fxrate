@@ -45,6 +45,8 @@ func HandleCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 		commands.HandleUnionPayCommand(ctx, b, update)
 	case "/xhmr":
 		commands.HandleXHMRCommand(ctx, b, update)
+	case "/jh":
+		commands.HandleXHMRCommand(ctx, b, update)
 	default:
 		return
 	}
@@ -60,7 +62,8 @@ func CommandStart(ctx context.Context, b *bot.Bot, update *models.Update) {
 			"/hy  - 寰宇人生借记卡\n"+
 			"/cmb - 招商银行\n\n"+
 			"/uniopay - 银联\n\n"+
-			"/xhmr [币种] [筛选数|银行] - 现汇买入对比\n\n"+
+			"/xhmr [币种] [筛选数|银行] - 现汇买入对比\n"+
+			"也可以使用 /jh\n\n"+
 			"Enjoy~ 💖", nickname,
 	)
 	tools.SendMessage(ctx, b, update.Message.Chat.ID, startReply, update.Message.MessageThreadID, "")

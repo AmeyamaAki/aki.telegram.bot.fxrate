@@ -49,13 +49,13 @@ func HandleXHMRCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 			continue
 		}
 		switch t {
-		case "boc", "cib", "cmb":
+		case "boc", "cib", "cmb", "hy":
 			bankKeys = append(bankKeys, t)
 		}
 	}
 	bankKeys = dedup(bankKeys)
 	if len(bankKeys) == 0 {
-		bankKeys = []string{"boc", "cib", "cmb"}
+		bankKeys = []string{"boc", "cib", "cmb", "hy"}
 	}
 
 	// 拉取数据
@@ -72,6 +72,10 @@ func HandleXHMRCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 			}
 		case "cmb":
 			if r := fetchCMB(ctx, ccy); r != nil {
+				results = append(results, *r)
+			}
+		case "hy":
+			if r := fetchCIBLife(ctx, ccy); r != nil {
 				results = append(results, *r)
 			}
 		}
@@ -166,6 +170,26 @@ func fetchCMB(ctx context.Context, ccy string) *bankRate {
 	}
 }
 
+// 寰宇人生（兴业银行优惠）：直接使用已折算后的现汇买入价（每100外币）
+func fetchCIBLife(ctx context.Context, ccy string) *bankRate {
+	r, found, err := bank.GetCIBLifeRate(ctx, ccy)
+	if err != nil || !found || r == nil {
+		return nil
+	}
+	val, ok := parsePrice(r.BuySpot)
+	if !ok {
+		return nil
+	}
+	return &bankRate{
+		BankNameCN:   "寰宇人生",
+		BankKey:      "hy",
+		CurrencyDesc: safeStr(r.Name, ccy),
+		BuySpotVal:   val,
+		BuySpotRaw:   r.BuySpot,
+		ReleaseTime:  r.ReleaseTime,
+	}
+}
+
 func parsePrice(s string) (float64, bool) {
 	t := strings.TrimSpace(s)
 	if t == "" || t == "-" {
@@ -209,6 +233,8 @@ func bankCN(key string) string {
 		return "兴业银行"
 	case "cmb":
 		return "招商银行"
+	case "hy":
+		return "寰宇人生"
 	default:
 		return key
 	}
