@@ -41,6 +41,8 @@ func HandleCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 		commands.HandleCIBLifeCommand(ctx, b, update)
 	case "/cmb":
 		commands.HandleCMBCommand(ctx, b, update)
+	case "/uniopay":
+		commands.HandleUnionPayCommand(ctx, b, update)
 	case "/xhmr":
 		commands.HandleXHMRCommand(ctx, b, update)
 	default:
@@ -57,6 +59,7 @@ func CommandStart(ctx context.Context, b *bot.Bot, update *models.Update) {
 			"/cib - 兴业银行\n"+
 			"/hy  - 寰宇人生借记卡\n"+
 			"/cmb - 招商银行\n\n"+
+			"/uniopay - 银联\n\n"+
 			"/xhmr [币种] [筛选数|银行] - 现汇买入对比\n\n"+
 			"Enjoy~ 💖", nickname,
 	)
@@ -70,6 +73,7 @@ func setCommandsForUser(ctx context.Context, b *bot.Bot, userID int64) {
 		{Command: "cib", Description: "兴业银行"},
 		{Command: "hy", Description: "寰宇人生借记卡"},
 		{Command: "cmb", Description: "招商银行"},
+		{Command: "uniopay", Description: "银联"},
 		{Command: "xhmr", Description: "现汇买入对比"},
 	}
 	params := &bot.SetMyCommandsParams{
