@@ -64,7 +64,7 @@ func HandleXHMCCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			ctxFetch, cancel := context.WithTimeout(ctx, 10*time.Second)
+			ctxFetch, cancel := context.WithTimeout(ctx, 20*time.Second)
 			defer cancel()
 			var r *bankRate
 			switch k {
@@ -121,7 +121,7 @@ func HandleXHMCCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 		tools.SendMessage(ctx, b, update.Message.Chat.ID, "未找到该币种的现汇买入价，请尝试币种代码（如: USD/HKD）或中文名。", update.Message.MessageThreadID, "")
 		// 若有超时，额外提醒
 		if len(timeoutKeys) > 0 {
-			tools.SendMessage(ctx, b, update.Message.Chat.ID, fmt.Sprintf("提醒：以下银行查询超时（>10s）：%s", strings.Join(mapBankNames(timeoutKeys), ", ")), update.Message.MessageThreadID, "")
+			tools.SendMessage(ctx, b, update.Message.Chat.ID, fmt.Sprintf("提醒：以下银行查询超时（>20s）：%s", strings.Join(mapBankNames(timeoutKeys), ", ")), update.Message.MessageThreadID, "")
 		}
 		return
 	}
@@ -155,7 +155,7 @@ func HandleXHMCCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 	tools.SendMessage(ctx, b, update.Message.Chat.ID, sb.String(), update.Message.MessageThreadID, "")
 	// 若有超时，额外提醒
 	if len(timeoutKeys) > 0 {
-		tools.SendMessage(ctx, b, update.Message.Chat.ID, fmt.Sprintf("提醒：以下银行查询超时（>10s）：%s", strings.Join(mapBankNames(timeoutKeys), ", ")), update.Message.MessageThreadID, "")
+		tools.SendMessage(ctx, b, update.Message.Chat.ID, fmt.Sprintf("提醒：以下银行查询超时（>20s）：%s", strings.Join(mapBankNames(timeoutKeys), ", ")), update.Message.MessageThreadID, "")
 	}
 	// 若有未返回数据（非超时），提示可能为不支持该币种或接口异常
 	if len(missingKeys) > 0 {
