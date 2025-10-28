@@ -39,7 +39,7 @@ func GetCITICRate(ctx context.Context, query string) (*CITICRate, bool, error) {
 		name := strings.TrimSpace(r.CurName)
 
 		code3 := citicNameToCode(name)
-    	if !(strings.Contains(name, target) || strings.EqualFold(code3, lt)) {
+		if !(strings.Contains(name, target) || strings.EqualFold(code3, lt)) {
 			continue
 		}
 

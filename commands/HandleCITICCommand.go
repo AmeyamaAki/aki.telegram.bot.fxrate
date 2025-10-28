@@ -100,7 +100,7 @@ func handleCITICConvert(ctx context.Context, b *bot.Bot, update *models.Update, 
             tools.SendMessage(ctx, b, update.Message.Chat.ID, "未找到该币种，请检查输入的目标币种代码。", update.Message.MessageThreadID, "")
             return
         }
-        label := "购汇卖价"
+        label := "购汇"
         rateStr := rate.SellSpot
         rateVal, ok := ParseRate(rate.SellSpot)
         if !ok || rateVal <= 0 {
@@ -125,7 +125,7 @@ func handleCITICConvert(ctx context.Context, b *bot.Bot, update *models.Update, 
             tools.SendMessage(ctx, b, update.Message.Chat.ID, "未找到该币种，请检查输入的源币种代码。", update.Message.MessageThreadID, "")
             return
         }
-        label := "结汇买价"
+        label := "结汇"
         rateStr := rate.BuySpot
         rateVal, ok := ParseRate(rate.BuySpot)
         if !ok || rateVal <= 0 {

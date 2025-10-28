@@ -40,14 +40,18 @@ func HandleXHMRCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 			continue
 		}
 		switch t {
-		case "boc", "cib", "cmb", "hy":
+		case "boc", "cib", "cmb", "hy", "cgb", "citic":
 			bankKeys = append(bankKeys, t)
 		}
 	}
 	bankKeys = dedup(bankKeys)
 	if len(bankKeys) == 0 {
-		bankKeys = []string{"boc", "cib", "cmb", "hy"}
+		bankKeys = []string{"boc", "cib", "cmb", "hy", "cgb", "citic"}
 	}
+
+	waitMsgID, _ := tools.SendMessage(ctx, b, update.Message.Chat.ID,
+		fmt.Sprintf("正在查询和比对 %s 的现汇买入价，请稍候…", ccy),
+		update.Message.MessageThreadID, "")
 
 	// 拉取数据
 	var results []bankRate
@@ -67,6 +71,14 @@ func HandleXHMRCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 			}
 		case "hy":
 			if r := fetchCIBLife_Sell(ctx, ccy); r != nil {
+				results = append(results, *r)
+			}
+		case "cgb":
+			if r := fetchCGB_Sell(ctx, ccy); r != nil {
+				results = append(results, *r)
+			}
+		case "citic":
+			if r := fetchCITIC_Sell(ctx, ccy); r != nil {
 				results = append(results, *r)
 			}
 		}
@@ -100,6 +112,8 @@ func HandleXHMRCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 	for i, r := range results {
 		sb.WriteString(fmt.Sprintf("%d. %s: %s（发布时间: %s）\n", i+1, r.BankNameCN, r.BuySpotRaw, r.ReleaseTime))
 	}
+	// 成功获取结果后，先删除等待提示消息（忽略删除错误）
+	_ = tools.DeleteMessage(ctx, b, update.Message.Chat.ID, waitMsgID)
 
 	tools.SendMessage(ctx, b, update.Message.Chat.ID, sb.String(), update.Message.MessageThreadID, "")
 }
@@ -174,6 +188,51 @@ func fetchCIBLife_Sell(ctx context.Context, ccy string) *bankRate {
 	return &bankRate{
 		BankNameCN:   "寰宇人生",
 		BankKey:      "hy",
+		CurrencyDesc: r.Name,
+		BuySpotVal:   val,
+		BuySpotRaw:   r.BuySpot,
+		ReleaseTime:  r.ReleaseTime,
+	}
+}
+
+// 广发银行：统一以 100 单位为准
+func fetchCGB_Sell(ctx context.Context, ccy string) *bankRate {
+	r, found, err := bank.GetCGBRate(ctx, ccy)
+	if err != nil || !found || r == nil {
+		return nil
+	}
+	val, ok := ParseRate(r.BuySpot)
+	if !ok {
+		return nil
+	}
+	unit := r.Unit
+	if unit <= 0 {
+		unit = 100
+	}
+	scale := 100.0 / unit
+	valPer100 := val * scale
+	return &bankRate{
+		BankNameCN:   "广发银行",
+		BankKey:      "cgb",
+		CurrencyDesc: r.Name,
+		BuySpotVal:   valPer100,
+		BuySpotRaw:   fmt.Sprintf("%.4f", valPer100),
+		ReleaseTime:  r.ReleaseTime,
+	}
+}
+
+func fetchCITIC_Sell(ctx context.Context, ccy string) *bankRate {
+	r, found, err := bank.GetCITICRate(ctx, ccy)
+	if err != nil || !found || r == nil {
+		return nil
+	}
+	val, ok := ParseRate(r.BuySpot)
+	if !ok {
+		return nil
+	}
+	return &bankRate{
+		BankNameCN:   "中信银行",
+		BankKey:      "citic",
 		CurrencyDesc: r.Name,
 		BuySpotVal:   val,
 		BuySpotRaw:   r.BuySpot,

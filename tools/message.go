@@ -55,7 +55,7 @@ func getUserNicknameByID(ctx context.Context, b *bot.Bot, userID int64) (string,
 	return firstName, nil
 }
 
-func SendMessage(ctx context.Context, b *bot.Bot, chatID int64, message string, messageThreadID int, parseMode string) {
+func SendMessage(ctx context.Context, b *bot.Bot, chatID int64, message string, messageThreadID int, parseMode string) (int, error) {
 	params := &bot.SendMessageParams{
 		ChatID:    chatID,
 		Text:      message,
@@ -65,10 +65,12 @@ func SendMessage(ctx context.Context, b *bot.Bot, chatID int64, message string, 
 		params.MessageThreadID = messageThreadID
 	}
 
-	_, err := b.SendMessage(ctx, params)
+	msg, err := b.SendMessage(ctx, params)
 	if err != nil {
 		LogError("Error sending message: %v", err)
+		return 0, err
 	}
+	return msg.ID, nil
 }
 
 func SendDocument(ctx context.Context, b *bot.Bot, chatID int64, topicID *int, filePath string) {
@@ -96,4 +98,18 @@ func SendDocument(ctx context.Context, b *bot.Bot, chatID int64, topicID *int, f
 	if err != nil {
 		LogError("Error sending document: %v", err)
 	}
+}
+
+// DeleteMessage deletes a bot-sent message by chat and message ID.
+func DeleteMessage(ctx context.Context, b *bot.Bot, chatID int64, messageID int) error {
+	params := &bot.DeleteMessageParams{
+		ChatID:    chatID,
+		MessageID: messageID,
+	}
+	_, err := b.DeleteMessage(ctx, params)
+	if err != nil {
+		LogError("Error deleting message: %v", err)
+		return err
+	}
+	return nil
 }
