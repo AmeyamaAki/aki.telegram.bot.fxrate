@@ -6,6 +6,15 @@ import (
 	"strings"
 )
 
+type bankRate struct {
+	BankNameCN   string
+	BankKey      string
+	CurrencyDesc string
+	BuySpotVal   float64
+	BuySpotRaw   string
+	ReleaseTime  string
+}
+
 // ParseAmount 解析输入金额，允许包含千分位逗号
 func ParseAmount(s string) (float64, bool) {
 	s = strings.TrimSpace(s)
@@ -71,4 +80,18 @@ func FormatFXToCNY(bankName, fromName, fromCode string, amountFX, outCNY float64
 			"发布时间: %s",
 		bankName, fromName, "CNY", amountFX, fromCode, outCNY, label, rateStr, releaseTime,
 	)
+}
+
+// 去重
+func dedup(xs []string) []string {
+	seen := make(map[string]struct{}, len(xs))
+	out := make([]string, 0, len(xs))
+	for _, x := range xs {
+		if _, ok := seen[x]; ok {
+			continue
+		}
+		seen[x] = struct{}{}
+		out = append(out, x)
+	}
+	return out
 }

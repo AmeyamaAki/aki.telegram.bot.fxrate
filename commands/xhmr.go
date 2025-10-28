@@ -14,15 +14,6 @@ import (
 	"aki.telegram.bot.fxrate/tools"
 )
 
-type bankRate struct {
-	BankNameCN   string
-	BankKey      string
-	CurrencyDesc string
-	BuySpotVal   float64
-	BuySpotRaw   string
-	ReleaseTime  string
-}
-
 func HandleXHMRCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if update == nil || update.Message == nil {
 		return
@@ -63,19 +54,19 @@ func HandleXHMRCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 	for _, key := range bankKeys {
 		switch key {
 		case "boc":
-			if r := fetchBOC(ctx, ccy); r != nil {
+			if r := fetchBOC_Sell(ctx, ccy); r != nil {
 				results = append(results, *r)
 			}
 		case "cib":
-			if r := fetchCIB(ctx, ccy); r != nil {
+			if r := fetchCIB_Sell(ctx, ccy); r != nil {
 				results = append(results, *r)
 			}
 		case "cmb":
-			if r := fetchCMB(ctx, ccy); r != nil {
+			if r := fetchCMB_Sell(ctx, ccy); r != nil {
 				results = append(results, *r)
 			}
 		case "hy":
-			if r := fetchCIBLife(ctx, ccy); r != nil {
+			if r := fetchCIBLife_Sell(ctx, ccy); r != nil {
 				results = append(results, *r)
 			}
 		}
@@ -107,63 +98,63 @@ func HandleXHMRCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("现汇买入最优排序 — %s\n", currencyDesc))
 	for i, r := range results {
-		sb.WriteString(fmt.Sprintf("%d. %s: %s（发布时间: %s）\n", i+1, bankCN(r.BankKey), r.BuySpotRaw, r.ReleaseTime))
+		sb.WriteString(fmt.Sprintf("%d. %s: %s（发布时间: %s）\n", i+1, r.BankNameCN, r.BuySpotRaw, r.ReleaseTime))
 	}
 
 	tools.SendMessage(ctx, b, update.Message.Chat.ID, sb.String(), update.Message.MessageThreadID, "")
 }
 
-func fetchBOC(ctx context.Context, ccy string) *bankRate {
+func fetchBOC_Sell(ctx context.Context, ccy string) *bankRate {
 	r, found, err := bank.GetBOCRate(ctx, ccy)
 	if err != nil || !found || r == nil {
 		return nil
 	}
-	val, ok := parsePrice(r.BuySpot)
+	val, ok := ParseRate(r.BuySpot)
 	if !ok {
 		return nil
 	}
 	return &bankRate{
 		BankNameCN:   "中国银行",
 		BankKey:      "boc",
-		CurrencyDesc: safeStr(r.Name, ccy),
+		CurrencyDesc: r.Name,
 		BuySpotVal:   val,
 		BuySpotRaw:   r.BuySpot,
 		ReleaseTime:  r.ReleaseTime,
 	}
 }
 
-func fetchCIB(ctx context.Context, ccy string) *bankRate {
+func fetchCIB_Sell(ctx context.Context, ccy string) *bankRate {
 	r, found, err := bank.GetCIBRate(ctx, ccy)
 	if err != nil || !found || r == nil {
 		return nil
 	}
-	val, ok := parsePrice(r.BuySpot)
+	val, ok := ParseRate(r.BuySpot)
 	if !ok {
 		return nil
 	}
 	return &bankRate{
 		BankNameCN:   "兴业银行",
 		BankKey:      "cib",
-		CurrencyDesc: safeStr(r.Name, ccy),
+		CurrencyDesc: r.Name,
 		BuySpotVal:   val,
 		BuySpotRaw:   r.BuySpot,
 		ReleaseTime:  r.ReleaseTime,
 	}
 }
 
-func fetchCMB(ctx context.Context, ccy string) *bankRate {
+func fetchCMB_Sell(ctx context.Context, ccy string) *bankRate {
 	r, found, err := bank.GetCMBRate(ctx, ccy)
 	if err != nil || !found || r == nil {
 		return nil
 	}
-	val, ok := parsePrice(r.BuySpot)
+	val, ok := ParseRate(r.BuySpot)
 	if !ok {
 		return nil
 	}
 	return &bankRate{
 		BankNameCN:   "招商银行",
 		BankKey:      "cmb",
-		CurrencyDesc: safeStr(r.Name, ccy),
+		CurrencyDesc: r.Name,
 		BuySpotVal:   val,
 		BuySpotRaw:   r.BuySpot,
 		ReleaseTime:  r.ReleaseTime,
@@ -171,71 +162,22 @@ func fetchCMB(ctx context.Context, ccy string) *bankRate {
 }
 
 // 寰宇人生（兴业银行优惠）：直接使用已折算后的现汇买入价（每100外币）
-func fetchCIBLife(ctx context.Context, ccy string) *bankRate {
+func fetchCIBLife_Sell(ctx context.Context, ccy string) *bankRate {
 	r, found, err := bank.GetCIBLifeRate(ctx, ccy)
 	if err != nil || !found || r == nil {
 		return nil
 	}
-	val, ok := parsePrice(r.BuySpot)
+	val, ok := ParseRate(r.BuySpot)
 	if !ok {
 		return nil
 	}
 	return &bankRate{
 		BankNameCN:   "寰宇人生",
 		BankKey:      "hy",
-		CurrencyDesc: safeStr(r.Name, ccy),
+		CurrencyDesc: r.Name,
 		BuySpotVal:   val,
 		BuySpotRaw:   r.BuySpot,
 		ReleaseTime:  r.ReleaseTime,
 	}
 }
 
-func parsePrice(s string) (float64, bool) {
-	t := strings.TrimSpace(s)
-	if t == "" || t == "-" {
-		return 0, false
-	}
-	// 移除可能的千位分隔符
-	t = strings.ReplaceAll(t, ",", "")
-	v, err := strconv.ParseFloat(t, 64)
-	if err != nil || v <= 0 {
-		return 0, false
-	}
-	return v, true
-}
-
-func safeStr(v string, fallback string) string {
-	v = strings.TrimSpace(v)
-	if v == "" {
-		return fallback
-	}
-	return v
-}
-
-func dedup(xs []string) []string {
-	seen := make(map[string]struct{}, len(xs))
-	out := make([]string, 0, len(xs))
-	for _, x := range xs {
-		if _, ok := seen[x]; ok {
-			continue
-		}
-		seen[x] = struct{}{}
-		out = append(out, x)
-	}
-	return out
-}
-
-func bankCN(key string) string {
-	switch key {
-	case "boc":
-		return "中国银行"
-	case "cib":
-		return "兴业银行"
-	case "cmb":
-		return "招商银行"
-	case "hy":
-		return "寰宇人生"
-	default:
-		return key
-	}
-}
