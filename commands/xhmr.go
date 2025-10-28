@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -53,35 +55,41 @@ func HandleXHMRCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 		fmt.Sprintf("正在查询和比对 %s 的现汇买入价，请稍候…", ccy),
 		update.Message.MessageThreadID, "")
 
-	// 拉取数据
-	var results []bankRate
+	// 并发拉取数据（每个银行一个 goroutine），设置单请求超时
+	resultsCh := make(chan *bankRate, len(bankKeys))
+	var wg sync.WaitGroup
 	for _, key := range bankKeys {
-		switch key {
-		case "boc":
-			if r := fetchBOC_Sell(ctx, ccy); r != nil {
-				results = append(results, *r)
+		k := key
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctxFetch, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
+			var r *bankRate
+			switch k {
+			case "boc":
+				r = fetchBOC_Sell(ctxFetch, ccy)
+			case "cib":
+				r = fetchCIB_Sell(ctxFetch, ccy)
+			case "cmb":
+				r = fetchCMB_Sell(ctxFetch, ccy)
+			case "hy":
+				r = fetchCIBLife_Sell(ctxFetch, ccy)
+			case "cgb":
+				r = fetchCGB_Sell(ctxFetch, ccy)
+			case "citic":
+				r = fetchCITIC_Sell(ctxFetch, ccy)
 			}
-		case "cib":
-			if r := fetchCIB_Sell(ctx, ccy); r != nil {
-				results = append(results, *r)
+			if r != nil {
+				resultsCh <- r
 			}
-		case "cmb":
-			if r := fetchCMB_Sell(ctx, ccy); r != nil {
-				results = append(results, *r)
-			}
-		case "hy":
-			if r := fetchCIBLife_Sell(ctx, ccy); r != nil {
-				results = append(results, *r)
-			}
-		case "cgb":
-			if r := fetchCGB_Sell(ctx, ccy); r != nil {
-				results = append(results, *r)
-			}
-		case "citic":
-			if r := fetchCITIC_Sell(ctx, ccy); r != nil {
-				results = append(results, *r)
-			}
-		}
+		}()
+	}
+	wg.Wait()
+	close(resultsCh)
+	var results []bankRate
+	for r := range resultsCh {
+		results = append(results, *r)
 	}
 
 	if len(results) == 0 {
