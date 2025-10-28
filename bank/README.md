@@ -113,6 +113,24 @@ Same as above.
 
 ---
 
+## citic.go
+
+```go
+type CITICRate struct {
+	Name        string // 币种中文名
+	Symbol      string // 代码
+	BuySpot     string // 结汇
+	SellSpot    string // 购汇
+	ReleaseTime string // 发布时间
+}
+```
+
+use `bank.GETCITICRate(ctx,"usd")` to get the USD rate from CITIC
+
+same as above
+
+---
+
 ## uniopay.go
 
 ```go
