@@ -99,6 +99,23 @@ func HandleXHMCCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 	for k := range timeoutsCh {
 		timeoutKeys = append(timeoutKeys, k)
 	}
+	// 统计未返回数据的银行（排除已统计为超时的）
+	missingKeys := make([]string, 0)
+	if len(results) < len(bankKeys) {
+		want := make(map[string]struct{}, len(bankKeys))
+		for _, k := range bankKeys {
+			want[k] = struct{}{}
+		}
+		for _, r := range results {
+			delete(want, r.BankKey)
+		}
+		for _, tk := range timeoutKeys {
+			delete(want, tk)
+		}
+		for k := range want {
+			missingKeys = append(missingKeys, k)
+		}
+	}
 
 	if len(results) == 0 {
 		tools.SendMessage(ctx, b, update.Message.Chat.ID, "未找到该币种的现汇买入价，请尝试币种代码（如: USD/HKD）或中文名。", update.Message.MessageThreadID, "")
@@ -140,31 +157,13 @@ func HandleXHMCCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if len(timeoutKeys) > 0 {
 		tools.SendMessage(ctx, b, update.Message.Chat.ID, fmt.Sprintf("提醒：以下银行查询超时（>10s）：%s", strings.Join(mapBankNames(timeoutKeys), ", ")), update.Message.MessageThreadID, "")
 	}
+	// 若有未返回数据（非超时），提示可能为不支持该币种或接口异常
+	if len(missingKeys) > 0 {
+		tools.SendMessage(ctx, b, update.Message.Chat.ID, fmt.Sprintf("提示：以下银行未返回数据（可能不支持该币种或接口异常）：%s", strings.Join(mapBankNames(missingKeys), ", ")), update.Message.MessageThreadID, "")
+	}
 }
 
-// 将银行 key 列表映射为中文名
-func mapBankNames(keys []string) []string {
-	if len(keys) == 0 {
-		return nil
-	}
-	m := map[string]string{
-		"boc":   "中国银行",
-		"cib":   "兴业银行",
-		"cmb":   "招商银行",
-		"hy":    "寰宇人生",
-		"cgb":   "广发银行",
-		"citic": "中信银行",
-	}
-	out := make([]string, 0, len(keys))
-	for _, k := range keys {
-		if v, ok := m[k]; ok {
-			out = append(out, v)
-		} else {
-			out = append(out, k)
-		}
-	}
-	return out
-}
+
 
 func fetchBOC(ctx context.Context, ccy string) *bankRate {
 	r, found, err := bank.GetBOCRate(ctx, ccy)

@@ -95,3 +95,27 @@ func dedup(xs []string) []string {
 	}
 	return out
 }
+
+// mapBankNames 将银行 key 列表映射为中文名
+func mapBankNames(keys []string) []string {
+	if len(keys) == 0 {
+		return nil
+	}
+	m := map[string]string{
+		"boc":   "中国银行",
+		"cib":   "兴业银行",
+		"cmb":   "招商银行",
+		"hy":    "寰宇人生",
+		"cgb":   "广发银行",
+		"citic": "中信银行",
+	}
+	out := make([]string, 0, len(keys))
+	for _, k := range keys {
+		if v, ok := m[k]; ok {
+			out = append(out, v)
+		} else {
+			out = append(out, k)
+		}
+	}
+	return out
+}
