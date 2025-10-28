@@ -85,6 +85,7 @@ func HandleXHMRCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 				resultsCh <- r
 			} else if ctxFetch.Err() == context.DeadlineExceeded {
 				timeoutsCh <- k
+				tools.LogError("xhmr: %s 查询超时（>20s）", strings.Join(mapBankNames([]string{k}), ", "))
 			}
 		}()
 	}
@@ -165,7 +166,11 @@ func HandleXHMRCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 
 func fetchBOC_Sell(ctx context.Context, ccy string) *bankRate {
 	r, found, err := bank.GetBOCRate(ctx, ccy)
-	if err != nil || !found || r == nil {
+	if err != nil {
+		tools.LogError("xhmr: 中国银行 获取失败: %v", err)
+		return nil
+	}
+	if !found || r == nil {
 		return nil
 	}
 	val, ok := ParseRate(r.BuySpot)
@@ -184,7 +189,11 @@ func fetchBOC_Sell(ctx context.Context, ccy string) *bankRate {
 
 func fetchCIB_Sell(ctx context.Context, ccy string) *bankRate {
 	r, found, err := bank.GetCIBRate(ctx, ccy)
-	if err != nil || !found || r == nil {
+	if err != nil {
+		tools.LogError("xhmr: 兴业银行 获取失败: %v", err)
+		return nil
+	}
+	if !found || r == nil {
 		return nil
 	}
 	val, ok := ParseRate(r.BuySpot)
@@ -203,7 +212,11 @@ func fetchCIB_Sell(ctx context.Context, ccy string) *bankRate {
 
 func fetchCMB_Sell(ctx context.Context, ccy string) *bankRate {
 	r, found, err := bank.GetCMBRate(ctx, ccy)
-	if err != nil || !found || r == nil {
+	if err != nil {
+		tools.LogError("xhmr: 招商银行 获取失败: %v", err)
+		return nil
+	}
+	if !found || r == nil {
 		return nil
 	}
 	val, ok := ParseRate(r.BuySpot)
@@ -223,7 +236,11 @@ func fetchCMB_Sell(ctx context.Context, ccy string) *bankRate {
 // 寰宇人生（兴业银行优惠）：直接使用已折算后的现汇买入价（每100外币）
 func fetchCIBLife_Sell(ctx context.Context, ccy string) *bankRate {
 	r, found, err := bank.GetCIBLifeRate(ctx, ccy)
-	if err != nil || !found || r == nil {
+	if err != nil {
+		tools.LogError("xhmr: 寰宇人生 获取失败: %v", err)
+		return nil
+	}
+	if !found || r == nil {
 		return nil
 	}
 	val, ok := ParseRate(r.BuySpot)
@@ -243,7 +260,11 @@ func fetchCIBLife_Sell(ctx context.Context, ccy string) *bankRate {
 // 广发银行：统一以 100 单位为准
 func fetchCGB_Sell(ctx context.Context, ccy string) *bankRate {
 	r, found, err := bank.GetCGBRate(ctx, ccy)
-	if err != nil || !found || r == nil {
+	if err != nil {
+		tools.LogError("xhmr: 广发银行 获取失败: %v", err)
+		return nil
+	}
+	if !found || r == nil {
 		return nil
 	}
 	val, ok := ParseRate(r.BuySpot)
@@ -268,7 +289,11 @@ func fetchCGB_Sell(ctx context.Context, ccy string) *bankRate {
 
 func fetchCITIC_Sell(ctx context.Context, ccy string) *bankRate {
 	r, found, err := bank.GetCITICRate(ctx, ccy)
-	if err != nil || !found || r == nil {
+	if err != nil {
+		tools.LogError("xhmr: 中信银行 获取失败: %v", err)
+		return nil
+	}
+	if !found || r == nil {
 		return nil
 	}
 	val, ok := ParseRate(r.BuySpot)
