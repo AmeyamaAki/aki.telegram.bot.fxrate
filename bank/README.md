@@ -131,6 +131,29 @@ same as above
 
 ---
 
+## cgb.go
+
+```go
+type CGBRate struct {
+	Name        string  // 币种中文名
+	Symbol      string  // 币种代码
+	Unit        float64 // 基数（1 或 100）
+	MiddleRate  string  // 中间价
+	BuySpot     string  // 现汇买入
+	BuyCash     string  // 现钞买入
+	SellSpot    string  // 现汇卖出
+	SellCash    string  // 现钞卖出
+	ReleaseTime string  // 发布时间
+}
+```
+
+use `bank.GETCGBRate(ctx,"usd")` to get the USD rate from CITIC
+
+same as above
+
+---
+
+
 ## uniopay.go
 
 ```go
