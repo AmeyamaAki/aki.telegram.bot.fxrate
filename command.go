@@ -47,6 +47,10 @@ func HandleCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 		commands.HandleXHMRCommand(ctx, b, update)
 	case "/jh":
 		commands.HandleXHMRCommand(ctx, b, update)
+	case "/xhmc":
+		commands.HandleXHMCCommand(ctx, b, update)
+	case "/gh":
+		commands.HandleXHMCCommand(ctx, b, update)
 	default:
 		return
 	}
@@ -64,6 +68,8 @@ func CommandStart(ctx context.Context, b *bot.Bot, update *models.Update) {
 			"/uniopay - 银联\n\n"+
 			"/xhmr [币种] [筛选数|银行] - 现汇买入对比\n"+
 			"也可以使用 /jh\n\n"+
+			"/xhmc [币种] [筛选数|银行] - 现汇卖出对比\n"+
+			"也可以使用 /gh\n\n"+
 			"Enjoy~ 💖", nickname,
 	)
 	tools.SendMessage(ctx, b, update.Message.Chat.ID, startReply, update.Message.MessageThreadID, "")
@@ -78,6 +84,7 @@ func setCommandsForUser(ctx context.Context, b *bot.Bot, userID int64) {
 		{Command: "cmb", Description: "招商银行"},
 		{Command: "uniopay", Description: "银联"},
 		{Command: "xhmr", Description: "现汇买入对比"},
+		{Command: "xhmc", Description: "现汇卖出对比"},
 	}
 	params := &bot.SetMyCommandsParams{
 		Commands: userCommands,
