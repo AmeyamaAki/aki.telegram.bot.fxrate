@@ -57,6 +57,7 @@ func HandleXHMCCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 
 	// 并发拉取数据（每个银行一个 goroutine），设置单请求超时
 	resultsCh := make(chan *bankRate, len(bankKeys))
+	timeoutsCh := make(chan string, len(bankKeys))
 	var wg sync.WaitGroup
 	for _, key := range bankKeys {
 		k := key
@@ -82,18 +83,29 @@ func HandleXHMCCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 			}
 			if r != nil {
 				resultsCh <- r
+			} else if ctxFetch.Err() == context.DeadlineExceeded {
+				timeoutsCh <- k
 			}
 		}()
 	}
 	wg.Wait()
 	close(resultsCh)
+	close(timeoutsCh)
 	var results []bankRate
 	for r := range resultsCh {
 		results = append(results, *r)
 	}
+	var timeoutKeys []string
+	for k := range timeoutsCh {
+		timeoutKeys = append(timeoutKeys, k)
+	}
 
 	if len(results) == 0 {
 		tools.SendMessage(ctx, b, update.Message.Chat.ID, "未找到该币种的现汇买入价，请尝试币种代码（如: USD/HKD）或中文名。", update.Message.MessageThreadID, "")
+		// 若有超时，额外提醒
+		if len(timeoutKeys) > 0 {
+			tools.SendMessage(ctx, b, update.Message.Chat.ID, fmt.Sprintf("提醒：以下银行查询超时（>10s）：%s", strings.Join(mapBankNames(timeoutKeys), ", ")), update.Message.MessageThreadID, "")
+		}
 		return
 	}
 
@@ -124,6 +136,34 @@ func HandleXHMCCommand(ctx context.Context, b *bot.Bot, update *models.Update) {
 	_ = tools.DeleteMessage(ctx, b, update.Message.Chat.ID, waitMsgID)
 
 	tools.SendMessage(ctx, b, update.Message.Chat.ID, sb.String(), update.Message.MessageThreadID, "")
+	// 若有超时，额外提醒
+	if len(timeoutKeys) > 0 {
+		tools.SendMessage(ctx, b, update.Message.Chat.ID, fmt.Sprintf("提醒：以下银行查询超时（>10s）：%s", strings.Join(mapBankNames(timeoutKeys), ", ")), update.Message.MessageThreadID, "")
+	}
+}
+
+// 将银行 key 列表映射为中文名
+func mapBankNames(keys []string) []string {
+	if len(keys) == 0 {
+		return nil
+	}
+	m := map[string]string{
+		"boc":   "中国银行",
+		"cib":   "兴业银行",
+		"cmb":   "招商银行",
+		"hy":    "寰宇人生",
+		"cgb":   "广发银行",
+		"citic": "中信银行",
+	}
+	out := make([]string, 0, len(keys))
+	for _, k := range keys {
+		if v, ok := m[k]; ok {
+			out = append(out, v)
+		} else {
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 func fetchBOC(ctx context.Context, ccy string) *bankRate {
