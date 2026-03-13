@@ -3,12 +3,10 @@ package bank
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
