@@ -174,23 +174,6 @@ func nz(s, def string) string {
 	return s
 }
 
-// 仅保留 TLS1.2 + TLS_RSA_WITH_AES_256_CBC_SHA 的最小客户端
-func bocClient() *http.Client {
-	tr := &http.Transport{
-		Proxy:             http.ProxyFromEnvironment,
-		ForceAttemptHTTP2: false,
-		TLSNextProto:      map[string]func(string, *tls.Conn) http.RoundTripper{},
-		TLSClientConfig: &tls.Config{
-			MinVersion:   tls.VersionTLS12,
-			MaxVersion:   tls.VersionTLS12,
-			ServerName:   "www.boc.cn",
-			NextProtos:   []string{"http/1.1"},
-			CipherSuites: []uint16{tls.TLS_RSA_WITH_AES_256_CBC_SHA},
-		},
-	}
-	return &http.Client{Transport: tr, Timeout: 12 * time.Second}
-}
-
 // FetchBOCHTML 获取并返回中国银行外汇牌价页面 HTML（按页面编码解码）
 func FetchBOCHTML(ctx context.Context) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, bocURL, nil)
@@ -199,12 +182,8 @@ func FetchBOCHTML(ctx context.Context) ([]byte, error) {
 	}
 	req.Header.Set("User-Agent", ua)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9")
-	req.Header.Set("Accept-Encoding", "identity")
-	req.Header.Set("Connection", "close")
 
-	client := bocClient()
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("BOC request failed: %v", err)
 	}
